@@ -12,9 +12,12 @@ import message.BuildSensorHostingHierarchyMsg;
 import message.DeclareCatalogMsg;
 import message.IsDefinedAsw;
 import message.IsDefinedMsg;
+import message.IsValidatedCatalogAsw;
+import message.IsValidatedCatalogMsg;
 import message.RecordEventBasedSensorMsg;
 import message.RecordPeriodicSensorMsg;
 import message.SketchPatternMsg;
+import message.ValidateAndPersistCatalogMsg;
 
 import org.eclipse.emf.common.util.BasicEList;
 import org.eclipse.emf.common.util.EList;
@@ -34,10 +37,7 @@ import sensorDeploymentLanguage.Event_Based;
 import sensorDeploymentLanguage.Observation;
 import sensorDeploymentLanguage.Periodic;
 import sensorDeploymentLanguage.SensorDeploymentLanguageFactory;
-import transfer.IsValidatedAsw;
-import transfer.IsValidatedMsg;
 import transfer.Service;
-import transfer.ValidateAndPersistMsg;
 import businessobject.Field;
 import errors.UnknownCatalogException;
 
@@ -76,6 +76,7 @@ public class SensorDeployment extends Service{
 		String name = msg.getCatalog();
 		try{
 			getCatalog(name);
+			System.out.println("--> [Warning] : Catalog " + name + " already exists" + "\t\t (" + System.currentTimeMillis() + " )");
 		}
 		catch(UnknownCatalogException e){
 			Catalog c = SensorDeploymentLanguageFactory.eINSTANCE.createCatalog();
@@ -83,7 +84,6 @@ public class SensorDeployment extends Service{
 			updateCatalog(name, c);;
 			System.out.println("Catalog " + name + " created" + "\t\t (" + System.currentTimeMillis() + " )");
 		}
-		System.out.println("--> [Warning] : Catalog " + name + " already exists" + "\t\t (" + System.currentTimeMillis() + " )");
 		validated = false;
 	}
 
@@ -136,6 +136,10 @@ public class SensorDeployment extends Service{
 		sensor.setPeriod(period);
 		
 		host.getContains().add(sensor);
+		
+		System.out.println("Catalog " + catalog + " contains periodic sensor " + sensorName + " in " + container + " observing " + observationPattern + " every "+ period+"s"
+				+ "\t\t (" + System.currentTimeMillis() + " )");
+		
 		validated = false;
 	}
 	
@@ -182,6 +186,10 @@ public class SensorDeployment extends Service{
 		sensor.setTrigger(trigger);
 		
 		host.getContains().add(sensor);
+		
+		System.out.println("Catalog " + catalog + " contains event-based sensor " + sensorName + " in " + container + " observing " + observationPattern
+				+ "\t\t (" + System.currentTimeMillis() + " )");
+		
 		validated = false;
 	}
 	
@@ -210,6 +218,11 @@ public class SensorDeployment extends Service{
 			obs.getValues().add(val);
 		}
 		preexisting.getPatterns().add(obs);
+		
+		System.out.println("Catalog " + catalog + " knows sketch " + name
+				+ "\t\t (" + System.currentTimeMillis() + " )");
+		
+		
 		validated = false;
 	}
 	
@@ -243,7 +256,7 @@ public class SensorDeployment extends Service{
 		return cat;
 	}
 
-	public static void validateAndPersist(ValidateAndPersistMsg msg) throws IOException {
+	public static void validateAndPersist(ValidateAndPersistCatalogMsg msg) throws IOException {
 		String fileName = "resources/" + msg.getModelName() + ".xmi";
 		File file = new File(fileName);
 		Files.deleteIfExists(file.toPath());
@@ -263,8 +276,8 @@ public class SensorDeployment extends Service{
 
 	}
 	
-	public static IsValidatedAsw isValidated(IsValidatedMsg msg){
-		return new IsValidatedAsw(validated);
+	public static IsValidatedCatalogAsw isValidated(IsValidatedCatalogMsg msg){
+		return new IsValidatedCatalogAsw(validated);
 	}
 
 }

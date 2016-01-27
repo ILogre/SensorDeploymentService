@@ -1,8 +1,12 @@
 package businessobject;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Arrays;
+import java.util.List;
+
+import sensorDeploymentLanguage.Atomic;
+import sensorDeploymentLanguage.DataType;
+import sensorDeploymentLanguage.SensorDeploymentLanguageFactory;
 
 public class Discrete extends Field {
 
@@ -21,5 +25,25 @@ public class Discrete extends Field {
 
 	public List<String> getValues() {
 		return values;
+	}
+
+	@Override
+	public void ConcretizeToEMF(Atomic key) {
+		sensorDeploymentLanguage.Discrete f = SensorDeploymentLanguageFactory.eINSTANCE.createDiscrete();
+		for(String s : this.getValues()){
+			DataType dt = null;
+			switch(s){
+			case "Integer":
+				dt = SensorDeploymentLanguageFactory.eINSTANCE.createInteger();
+				break;
+			case "Float":
+				dt = SensorDeploymentLanguageFactory.eINSTANCE.createFloat();
+				break;
+			default :
+				dt = SensorDeploymentLanguageFactory.eINSTANCE.createString();
+			}
+			f.getValues().add(dt);
+			key.setRange(f);
+		}
 	}
 }

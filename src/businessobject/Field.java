@@ -1,5 +1,10 @@
 package businessobject;
 
+import sensorDeploymentLanguage.Atomic;
+
+
+
+
 public abstract class Field {
 	
 	public Field(String name) {
@@ -45,6 +50,7 @@ public abstract class Field {
 		this.function = function;
 	}
 	
+	public abstract void ConcretizeToEMF(Atomic key);
 	
 
 }

@@ -5,15 +5,21 @@ import transfer.Message;
 
 public class SketchPatternMsg extends Message {
 
+	private String catalog;
 	private String name;
 	private Field key;
 	private Field[] values;
 	
-	public SketchPatternMsg(String name, Field key, Field... values) {
+	public SketchPatternMsg(String catalog, String name, Field key, Field... values) {
 		super();
+		this.catalog = catalog;
 		this.name = name;
 		this.key = key;
 		this.values = values;
+	}
+
+	public String getCatalog() {
+		return catalog;
 	}
 
 	public String getName() {

@@ -2,7 +2,7 @@ package message;
 
 import java.util.LinkedHashMap;
 
-import sensorDeploymentLanguage.ContainerType;
+import businessobject.ContainerType;
 import transfer.Message;
 
 public class BuildSensorHostingHierarchyMsg extends Message {

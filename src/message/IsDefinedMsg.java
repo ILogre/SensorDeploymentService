@@ -5,19 +5,19 @@ import transfer.Message;
 public class IsDefinedMsg extends Message {
 	
 	private String catalog;
-	private String data;
+	private String sensor;
 	
-	public IsDefinedMsg(String catalog, String data) {
+	public IsDefinedMsg(String catalog, String sensor) {
 		super();
 		this.catalog = catalog;
-		this.data = data;
+		this.sensor = sensor;
 	}
 
 	public String getCatalog() {
 		return catalog;
 	}
 
-	public String getData() {
-		return data;
+	public String getSensor() {
+		return sensor;
 	}
 }

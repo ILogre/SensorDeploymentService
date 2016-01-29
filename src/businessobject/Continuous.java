@@ -60,5 +60,12 @@ public class Continuous<T>extends Field {
 		f.setMax(dtmax);
 		key.setRange(f);
 	}
+
+	@Override
+	public String toString() {
+		return "Continuous [name=" + name + ",  min=" + min + ", max=" + max + "]";
+	}
+	
+	
 	
 }

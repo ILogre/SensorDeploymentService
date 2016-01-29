@@ -46,4 +46,11 @@ public class Discrete extends Field {
 			key.setRange(f);
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "Discrete [name=" + name + ",  values=" + values + "]";
+	}
+	
+	
 }

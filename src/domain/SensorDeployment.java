@@ -3,19 +3,25 @@ package domain;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import message.BuildSensorHostingHierarchyMsg;
 import message.DeclareCatalogMsg;
+import message.DescribeSensorAsw;
+import message.DescribeSensorMsg;
 import message.IsDefinedAsw;
 import message.IsDefinedMsg;
 import message.IsValidatedCatalogAsw;
 import message.IsValidatedCatalogMsg;
 import message.RecordEventBasedSensorMsg;
 import message.RecordPeriodicSensorMsg;
+import message.SearchAllSensorsAsw;
+import message.SearchAllSensorsMsg;
 import message.SketchPatternMsg;
 import message.ValidateAndPersistCatalogMsg;
 
@@ -33,13 +39,19 @@ import sensorDeploymentLanguage.Atomic;
 import sensorDeploymentLanguage.Catalog;
 import sensorDeploymentLanguage.Containable;
 import sensorDeploymentLanguage.Container;
+import sensorDeploymentLanguage.DataType;
 import sensorDeploymentLanguage.Event_Based;
 import sensorDeploymentLanguage.Observation;
 import sensorDeploymentLanguage.Periodic;
+import sensorDeploymentLanguage.Sensor;
 import sensorDeploymentLanguage.SensorDeploymentLanguageFactory;
 import transfer.Service;
+import businessobject.Continuous;
+import businessobject.Discrete;
 import businessobject.Field;
 import errors.UnknownCatalogException;
+import errors.UnkonwnSensorException;
+import errors.UnreachableCodeException;
 
 /*
  * This class represent the domain knowledge of the Sensor Deployment domain
@@ -227,10 +239,122 @@ public class SensorDeployment extends Service{
 	}
 	
 	
-	public static IsDefinedAsw isDefined ( IsDefinedMsg msg ) {
-		return new IsDefinedAsw(msg.getCatalog(), msg.getData(),true);
+	public static IsDefinedAsw isDefined ( IsDefinedMsg msg ) throws UnknownCatalogException {
+		String catalog = msg.getCatalog();
+		String sensor= msg.getSensor();
+		
+		Catalog preexisting = getCatalog(catalog);
+		
+		boolean answer = false;
+		for(Container container : preexisting.getRecords())
+			answer = isDefinedInContainer(sensor, container);
+				
+		return new IsDefinedAsw(msg.getCatalog(), msg.getSensor(), answer);
 		
 	}
+	
+	private static boolean isDefinedInContainer(String sensor, Container container){
+		if(container.getContains().isEmpty())
+			return false;
+		else{
+			boolean asw = false;
+			for(Containable containable : container.getContains())
+				if(Sensor.class.isInstance(containable)){
+					if(containable.getName().equals(sensor))
+						return true;
+				}
+				else
+					asw = asw || isDefinedInContainer(sensor,(Container) containable);
+			return asw;
+		}
+
+	}
+	
+	private static Sensor GetSensorDefinedInContainer(String sensor, Container container) throws UnkonwnSensorException{
+		if(container.getContains().isEmpty())
+			return null;
+		else
+		for(Containable containable : container.getContains())
+			if(Sensor.class.isInstance(containable)){
+				if(containable.getName().equals(sensor))
+					return (Sensor) containable;
+			}
+			else{
+				Sensor bellow = GetSensorDefinedInContainer(sensor,(Container) containable);
+				if(bellow!=null)
+					return bellow;
+			}
+		return null;
+	}
+	
+	private static Sensor GetSensorDefinedInCatalog(String sensor, Catalog catalog) throws UnkonwnSensorException{
+		for(Container c : catalog.getRecords())
+			if(isDefinedInContainer(sensor, c))
+				return GetSensorDefinedInContainer(sensor, c);
+		throw new UnkonwnSensorException("Sensor "+sensor+" unknown in catalog "+catalog.getName());
+	}
+	
+	public static DescribeSensorAsw describeSensor(DescribeSensorMsg msg) throws UnknownCatalogException, UnkonwnSensorException, UnreachableCodeException{
+		String catalogName = msg.getCatalogName();
+		String sensorName= msg.getSensorName();
+		
+		Catalog catalog = getCatalog(catalogName);
+		
+		Sensor sensor = GetSensorDefinedInCatalog(sensorName,catalog);
+		boolean isPeriodic = Periodic.class.isInstance(sensor);
+		boolean isEventBased = Event_Based.class.isInstance(sensor);
+		int period = -1;
+		if(isPeriodic){
+			Periodic p = (Periodic)sensor;
+			period = p.getPeriod();
+		}
+		Observation o = sensor.getObserves();
+		List<Field> fields = new ArrayList<Field>();
+		sensorDeploymentLanguage.Field time = o.getTime();
+		sensorDeploymentLanguage.Continuous continuousTime = (sensorDeploymentLanguage.Continuous)time.getRange();
+		fields.add(new Continuous<>(time.getName(), continuousTime.getMin(), continuousTime.getMax() ));
+		for(sensorDeploymentLanguage.Field f : o.getValues()){
+			sensorDeploymentLanguage.Range r = f.getRange();
+			if(sensorDeploymentLanguage.Continuous.class.isInstance(r)){
+				sensorDeploymentLanguage.Continuous continuousField = (sensorDeploymentLanguage.Continuous) r;
+				Object valuemin = getDataTypeValue(continuousField.getMin());
+				Object valuemax = getDataTypeValue(continuousField.getMax());
+				fields.add(new Continuous<>(f.getName(), valuemin, valuemax));			
+			}else if(sensorDeploymentLanguage.Discrete.class.isInstance(r)){
+				sensorDeploymentLanguage.Discrete discreteField = (sensorDeploymentLanguage.Discrete) r;
+				String[] l = new String[discreteField.getValues().size()];
+				for(DataType d : discreteField.getValues())
+					l[l.length]=getDataTypeValue(d).toString();
+				fields.add(new Discrete(f.getName(),l));
+			}else
+				throw new UnreachableCodeException();			
+		}
+		DescribeSensorAsw answer = new DescribeSensorAsw(sensorName, o.getName(),isPeriodic,isEventBased, period, fields);
+		return answer;
+	}
+	
+	private static Object getDataTypeValue(DataType d) throws UnreachableCodeException{
+		if(sensorDeploymentLanguage.Integer.class.isInstance(d)){
+			sensorDeploymentLanguage.Integer i = (sensorDeploymentLanguage.Integer) d;
+			return i.getValue();
+		}else if(sensorDeploymentLanguage.Float.class.isInstance(d)){
+			sensorDeploymentLanguage.Float f = (sensorDeploymentLanguage.Float) d;
+			return f.getValue();
+		}else if(sensorDeploymentLanguage.String.class.isInstance(d)){
+			sensorDeploymentLanguage.String s = (sensorDeploymentLanguage.String) d;
+			return s.getValue();
+		}
+		throw new UnreachableCodeException();
+	}
+	
+	public static SearchAllSensorsAsw searchAllSensors(SearchAllSensorsMsg msg){
+		return null;
+		
+	}
+	
+	
+	
+	
 	
 	static { // register the language
 		Resource.Factory.Registry reg = Resource.Factory.Registry.INSTANCE;

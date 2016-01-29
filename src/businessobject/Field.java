@@ -12,7 +12,7 @@ public abstract class Field {
 		this.name = name;
 	}
 
-	private String name;
+	protected String name;
 
 	public String getName() {
 		return name;

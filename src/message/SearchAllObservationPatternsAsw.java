@@ -16,4 +16,11 @@ public class SearchAllObservationPatternsAsw extends Answer {
 	public List<String> getPatterns() {
 		return patterns;
 	}
+
+	@Override
+	public String toString() {
+		return "SearchAllObservationPatternsAsw [patterns=" + patterns + "]";
+	}
+	
+	
 }

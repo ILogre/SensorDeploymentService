@@ -24,5 +24,10 @@ public class DescribeObservationPatternAsw extends Answer {
 	public Map<String, Boolean> getValues() {
 		return values;
 	}
+	@Override
+	public String toString() {
+		return "DescribeObservationPatternAsw [keyName=" + keyName
+				+ ", continuous=" + continuous + ", values=" + values + "]";
+	}
 	
 }

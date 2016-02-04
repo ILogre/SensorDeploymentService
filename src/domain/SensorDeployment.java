@@ -12,6 +12,8 @@ import java.util.Map;
 
 import message.BuildSensorHostingHierarchyMsg;
 import message.DeclareCatalogMsg;
+import message.DescribeObservationPatternAsw;
+import message.DescribeObservationPatternMsg;
 import message.DescribeSensorAsw;
 import message.DescribeSensorMsg;
 import message.IsDefinedAsw;
@@ -50,6 +52,8 @@ import businessobject.Continuous;
 import businessobject.Discrete;
 import businessobject.Field;
 import errors.UnknownCatalogException;
+import errors.UnknownContainerException;
+import errors.UnknownObservationPatternException;
 import errors.UnkonwnSensorException;
 import errors.UnreachableCodeException;
 
@@ -270,7 +274,7 @@ public class SensorDeployment extends Service{
 
 	}
 	
-	private static Sensor GetSensorDefinedInContainer(String sensor, Container container) throws UnkonwnSensorException{
+	private static Sensor getSensorDefinedInContainer(String sensor, Container container) throws UnkonwnSensorException{
 		if(container.getContains().isEmpty())
 			return null;
 		else
@@ -280,17 +284,17 @@ public class SensorDeployment extends Service{
 					return (Sensor) containable;
 			}
 			else{
-				Sensor bellow = GetSensorDefinedInContainer(sensor,(Container) containable);
+				Sensor bellow = getSensorDefinedInContainer(sensor,(Container) containable);
 				if(bellow!=null)
 					return bellow;
 			}
 		return null;
 	}
 	
-	private static Sensor GetSensorDefinedInCatalog(String sensor, Catalog catalog) throws UnkonwnSensorException{
+	private static Sensor getSensorDefinedInCatalog(String sensor, Catalog catalog) throws UnkonwnSensorException{
 		for(Container c : catalog.getRecords())
 			if(isDefinedInContainer(sensor, c))
-				return GetSensorDefinedInContainer(sensor, c);
+				return getSensorDefinedInContainer(sensor, c);
 		throw new UnkonwnSensorException("Sensor "+sensor+" unknown in catalog "+catalog.getName());
 	}
 	
@@ -300,7 +304,7 @@ public class SensorDeployment extends Service{
 		
 		Catalog catalog = getCatalog(catalogName);
 		
-		Sensor sensor = GetSensorDefinedInCatalog(sensorName,catalog);
+		Sensor sensor = getSensorDefinedInCatalog(sensorName,catalog);
 		boolean isPeriodic = Periodic.class.isInstance(sensor);
 		boolean isEventBased = Event_Based.class.isInstance(sensor);
 		int period = -1;
@@ -347,14 +351,79 @@ public class SensorDeployment extends Service{
 		throw new UnreachableCodeException();
 	}
 	
-	public static SearchAllSensorsAsw searchAllSensors(SearchAllSensorsMsg msg){
-		return null;
+	public static SearchAllSensorsAsw searchAllSensors(SearchAllSensorsMsg msg) throws UnknownCatalogException, UnknownContainerException{
+		String catalogName = msg.getCatalogName();
+		String containerName= msg.getContainer();
+		
+		Catalog catalog = getCatalog(catalogName);
+		Container container = getContainerByName(catalog,containerName);
+		
+		List<String> names = new ArrayList<String>();
+		for(Sensor sensor : getSensorsByContainer(container))
+			names.add(sensor.getName());
+		
+		return new SearchAllSensorsAsw(names);
 		
 	}
 	
+	private static List<Sensor> getSensorsByContainer(Container container){
+		List<Sensor> result = new ArrayList<Sensor>();
+		for(Containable containable : container.getContains())
+			if(Sensor.class.isInstance(containable))
+				result.add((Sensor) containable);
+			else
+				result.addAll(getSensorsByContainer((Container)containable));
+		return result;
+	}
 	
+	private static Container getContainerByName(Container c, String containerName) throws UnknownContainerException{
+		for(Containable containable : c.getContains())
+			if (Container.class.isInstance(containable)){
+				Container container = (Container) containable;
+				if (container.getName().equalsIgnoreCase(containerName))
+					return container;
+				else{
+					Container result = getContainerByName(container, containerName);
+					if(result != null)
+						return result;
+				}
+			}
+		return null;
+	}
 	
+	private static Container getContainerByName(Catalog catalog, String containerName) throws UnknownContainerException{
+		for(Container container : catalog.getRecords()){
+			if (container.getName().equalsIgnoreCase(containerName)){
+				return container;
+			}
+			else{
+				Container result = getContainerByName(container, containerName);
+				if(result != null)
+					return result;
+			}
+		}
+		throw new UnknownContainerException("Container "+containerName+" is not known in catalog "+catalog.getName());
+	}
 	
+	public static DescribeObservationPatternAsw describeObservationPattern(DescribeObservationPatternMsg msg) throws UnknownCatalogException, UnknownObservationPatternException{
+		String catalogName = msg.getCatalogName();
+		String observationName= msg.getObservationName();
+		
+		Catalog catalog = getCatalog(catalogName);
+		
+		List<Observation> observations = catalog.getPatterns();
+		Observation observation = null;
+		for(Observation o : observations){
+			if(o.getName().equalsIgnoreCase(observationName))
+				observation=o;
+		}
+		if(observation==null)
+			throw new UnknownObservationPatternException("Observation pattern "+observationName+" is not known.");
+		Map<String, Boolean> values = new HashMap<>();
+		for(sensorDeploymentLanguage.Field field : observation.getValues())
+			values.put(field.getName(), Continuous.class.isInstance(field.getRange()));
+		return new DescribeObservationPatternAsw(observation.getTime().getName(),Continuous.class.isInstance(observation.getTime().getRange()),values);
+	}
 	
 	static { // register the language
 		Resource.Factory.Registry reg = Resource.Factory.Registry.INSTANCE;

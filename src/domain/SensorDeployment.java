@@ -22,6 +22,8 @@ import message.IsValidatedCatalogAsw;
 import message.IsValidatedCatalogMsg;
 import message.RecordEventBasedSensorMsg;
 import message.RecordPeriodicSensorMsg;
+import message.SearchAllObservationPatternsAsw;
+import message.SearchAllObservationPatternsMsg;
 import message.SearchAllSensorsAsw;
 import message.SearchAllSensorsMsg;
 import message.SketchPatternMsg;
@@ -423,6 +425,16 @@ public class SensorDeployment extends Service{
 		for(sensorDeploymentLanguage.Field field : observation.getValues())
 			values.put(field.getName(), Continuous.class.isInstance(field.getRange()));
 		return new DescribeObservationPatternAsw(observation.getTime().getName(),Continuous.class.isInstance(observation.getTime().getRange()),values);
+	}
+	
+	public static SearchAllObservationPatternsAsw searchAllObservationPatterns(SearchAllObservationPatternsMsg msg) throws UnknownCatalogException{
+		String catalogName = msg.getCatalog();
+		Catalog catalog = getCatalog(catalogName);
+		List<Observation> observations = catalog.getPatterns();
+		List<String> names = new ArrayList<String>();
+		for(Observation o : observations)
+			names.add(o.getName());
+		return new SearchAllObservationPatternsAsw(names);
 	}
 	
 	static { // register the language

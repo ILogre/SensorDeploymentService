@@ -434,7 +434,7 @@ public class SensorDeployment extends Service{
 		Map<String, Boolean> values = new HashMap<>();
 		for(sensorDeploymentLanguage.Field field : observation.getValues())
 			values.put(field.getName(), Continuous.class.isInstance(field.getRange()));
-		return new DescribeObservationPatternAsw(observationName,observation.getTime().getName(),Continuous.class.isInstance(observation.getTime().getRange()),values);
+		return new DescribeObservationPatternAsw(observationName,observation.getTime().getName(),sensorDeploymentLanguage.Continuous.class.isInstance(observation.getTime().getRange()),values);
 	}
 	
 	public static SearchAllObservationPatternsAsw searchAllObservationPatterns(SearchAllObservationPatternsMsg msg) throws UnknownCatalogException{

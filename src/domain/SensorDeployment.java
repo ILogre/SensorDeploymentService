@@ -26,6 +26,8 @@ import message.SearchAllObservationPatternsAsw;
 import message.SearchAllObservationPatternsMsg;
 import message.SearchAllSensorsAsw;
 import message.SearchAllSensorsMsg;
+import message.SearchSensorsByObservationPatternAsw;
+import message.SearchSensorsByObservationPatternMsg;
 import message.SketchPatternMsg;
 import message.ValidateAndPersistCatalogMsg;
 
@@ -378,6 +380,14 @@ public class SensorDeployment extends Service{
 		return result;
 	}
 	
+	
+	private static List<Sensor> getSensorsByCatalog(Catalog catalog){
+		List<Sensor> result = new ArrayList<Sensor>();
+		for(Container container : catalog.getRecords())
+			result.addAll(getSensorsByContainer(container));
+		return result;
+	}
+	
 	private static Container getContainerByName(Container c, String containerName) throws UnknownContainerException{
 		for(Containable containable : c.getContains())
 			if (Container.class.isInstance(containable)){
@@ -424,7 +434,7 @@ public class SensorDeployment extends Service{
 		Map<String, Boolean> values = new HashMap<>();
 		for(sensorDeploymentLanguage.Field field : observation.getValues())
 			values.put(field.getName(), Continuous.class.isInstance(field.getRange()));
-		return new DescribeObservationPatternAsw(observation.getTime().getName(),Continuous.class.isInstance(observation.getTime().getRange()),values);
+		return new DescribeObservationPatternAsw(observationName,observation.getTime().getName(),Continuous.class.isInstance(observation.getTime().getRange()),values);
 	}
 	
 	public static SearchAllObservationPatternsAsw searchAllObservationPatterns(SearchAllObservationPatternsMsg msg) throws UnknownCatalogException{
@@ -435,6 +445,26 @@ public class SensorDeployment extends Service{
 		for(Observation o : observations)
 			names.add(o.getName());
 		return new SearchAllObservationPatternsAsw(names);
+	}
+	
+	private static List<Sensor> filterSensorsByObservationPattern(List<Sensor> sensors, String obsPat){
+		List<Sensor> result = new ArrayList<Sensor>();
+		for(Sensor sensor : sensors)
+			if(sensor.getObserves().getName().equalsIgnoreCase(obsPat))
+				result.add(sensor);
+		return result;
+		
+	}
+	
+	public static SearchSensorsByObservationPatternAsw searchSensorsByObservationPattern (SearchSensorsByObservationPatternMsg msg) throws UnknownCatalogException{
+		String catalogName = msg.getCatalog();
+		String observationPattern = msg.getPattern();
+		Catalog catalog = getCatalog(catalogName);
+		List<String> sensorNames = new ArrayList<String>();
+		List<Sensor> sensors = filterSensorsByObservationPattern(getSensorsByCatalog(catalog), observationPattern);
+		for(Sensor sensor : sensors)
+			sensorNames.add(sensor.getName());
+		return new SearchSensorsByObservationPatternAsw(sensorNames);
 	}
 	
 	static { // register the language
